@@ -1,8 +1,8 @@
 const Post = require("../models/posts");
+const User = require("../models/users");
 const FeaturedPost = require("../models/featuredPost");
 const cloudinary = require("../cloud");
 const { isValidObjectId } = require("mongoose");
-
 const addToFeaturedPost = async (postId) => {
 
     const isAlreadyExists = await FeaturedPost.findOne({post : postId});
@@ -36,7 +36,7 @@ const isFeaturedPost = async (postId) => {
 exports.createPost = async (req,res) => {
     try {
 
-        const { title , meta , content , slug , author , tags , featured}  = req.body;
+        const { title , meta , content , slug , author , tags , featured , }  = req.body;
         const {file} = req;
         
         const isAlreadyExists = await Post.findOne({slug});
@@ -53,6 +53,8 @@ exports.createPost = async (req,res) => {
         }
         
         await newPost.save();
+
+        await User.findOneAndUpdate({author}, {  $push : { blogs : newPost._id }});
 
         if(featured){
             await addToFeaturedPost(newPost._id);
@@ -71,11 +73,13 @@ exports.deletePost = async (req,res) => {
         return res.status(401).json({error : `Invalid Request !!`});
     }
 
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).populate("author");
 
     if(!post){
         return res.status(401).json({error : `Post Not found !!`});
     }
+
+    await User.findOneAndUpdate({_id : post.author._id}, {  $pull : { blogs : postId}});
 
     const public_id = post.thumbnail?.public_id;
 
@@ -126,7 +130,7 @@ exports.updatePost = async (req,res) => {
     post.meta = meta
     post.slug = slug
     post.content = content
-    post.author = author
+    // post.author = author
     post.tags = tags
     
     if(featured){
@@ -147,7 +151,7 @@ exports.getSinglePost = async (req,res) => {
         return res.status(401).json({error : `Invalid Request !!`});
     }
 
-    const singlePost = await Post.findById(postId);
+    const singlePost = await Post.findById(postId).populate('author');
 
     if(!singlePost){
         return res.status(401).json({error : `Post Not found !!`});
@@ -163,7 +167,9 @@ exports.getSinglePost = async (req,res) => {
 };
 
 exports.getFeturedPosts = async (req,res) => {
-    const featuredPosts = await FeaturedPost.find({}).sort({createdAt : -1}).limit(5).populate('post');
+    const featuredPosts = await FeaturedPost.find({}).sort({createdAt : -1}).limit(5).populate({path : 'post' , populate: {
+        path: "author"
+     }});
 
     res.json({posts : featuredPosts.map(({post}) => {
         return ({
@@ -175,7 +181,7 @@ exports.getFeturedPosts = async (req,res) => {
 
 exports.getPosts = async (req,res) => {
     const { pageNo = 0 , limit = 10  } = req.query;
-    const  posts = await Post.find({}).sort({createdAt : -1}).skip(parseInt(pageNo) * parseInt(limit)).limit(parseInt(limit));
+    const  posts = await Post.find({}).sort({createdAt : -1}).skip(parseInt(pageNo) * parseInt(limit)).limit(parseInt(limit)).populate("author");
     
     res.json({posts : posts.map((post) => {
         return ({
@@ -191,7 +197,7 @@ exports.searchPost = async (req,res) => {
         return res.status(401).json({error : `Search Querry is Missing !! `});
     }
 
-    const posts = await Post.find({title : {$regex : title , $options : "i"}});
+    const posts = await Post.find({title : {$regex : title , $options : "i"}}).populate("author");
 
     res.json({posts : posts.map((post) => {
         return ({
@@ -209,7 +215,7 @@ exports.getRelatedPosts = async (req,res) => {
         return res.status(401).json({error : `Invalid Request !!`});
     }
 
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).populate("author");
 
     if(!post){
         return res.status(401).json({error : `Post Not found !!`});
@@ -218,7 +224,7 @@ exports.getRelatedPosts = async (req,res) => {
     const relatedPosts = await Post.find({
         tags : { $in : [...post.tags]},
         _id : { $ne : post._id}
-    }).sort({createdAt : -1}).limit(5);
+    }).sort({createdAt : -1}).limit(5).populate("author");
 
     res.json({posts : relatedPosts.map((post) => {
         return ({

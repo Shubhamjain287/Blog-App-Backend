@@ -21,11 +21,11 @@ const postSchema = mongoose.Schema({
         required : true
     },
     author : {
-        type : String,
-        default : "Admin"
-        // type : mongoose.Schema.Types.ObjectId,
-        // ref : 'User',
-        // required : true
+        // type : String,
+        // default : "Admin"
+        type : mongoose.Schema.Types.ObjectId,
+        ref : "User",
+        required : true
     },
     slug : {
         type : String,

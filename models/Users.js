@@ -17,6 +17,10 @@ const userSchema = mongoose.Schema({
         type : String,
         // required : true
     },
+    blogs : [{
+        type : mongoose.Schema.Types.ObjectId,
+        ref : "Post"
+    }],
     profile : {
         type : Object,
         url : {
