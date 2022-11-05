@@ -1,4 +1,3 @@
-const { json } = require("express");
 const {check , validationResult} = require("express-validator");
 
 exports.postValidators = [
